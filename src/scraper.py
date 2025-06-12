@@ -16,11 +16,9 @@ class VintedScraper:
         self,
         bq_client: bigquery.Client,
         vinted_client: Vinted,
-        insert_every_catalog: int,
     ):
         self.bq_client = bq_client
         self.vinted_client = vinted_client
-        self.insert_every_catalog = insert_every_catalog
 
         self._reference_field = "vinted_id"
         self._filter_batch_size = 1
@@ -43,7 +41,6 @@ class VintedScraper:
         only_vintage: bool,
         women: bool,
     ):
-        self._reset_staging()
         loop = tqdm(iterable=catalogs, total=len(catalogs))
 
         for entry in loop:
@@ -100,19 +97,35 @@ class VintedScraper:
                     women,
                     catalog_title,
                     color_id,
-                    material_id,
-                    pattern_id,
                 )
 
-            if len(item_entries) > 0 and len(image_entries) > 0:
-                self.num_uploaded += self._upload(
-                    item_entries, image_entries, likes_entries, item_details_entries
-                )
+            self.num_uploaded += self._upload(
+                item_entries, image_entries, likes_entries, item_details_entries
+            )
 
-            if self.counter % self.insert_every_catalog == 0 or self.counter == len(
-                catalogs
-            ):
-                self._insert_from_staging()
+    def insert_from_staging(self):
+        for table_id in [ITEM_TABLE_ID, IMAGE_TABLE_ID]:
+            inserted = insert_staging_rows(
+                client=self.bq_client,
+                dataset_id=DATASET_ID,
+                table_id=table_id,
+                reference_field=self._reference_field,
+            )
+
+            self.num_inserted += max(inserted, 0)
+
+    def reset_staging(self) -> bool:
+        success = False
+
+        for table_id in [ITEM_TABLE_ID, IMAGE_TABLE_ID]:
+            success = reset_staging_table(
+                client=self.bq_client,
+                dataset_id=DATASET_ID,
+                table_id=table_id,
+                field_id=self._reference_field,
+            )
+
+        return success
 
     def _update_progress(
         self,
@@ -120,8 +133,6 @@ class VintedScraper:
         women: bool,
         catalog_title: str,
         color_id: Optional[int] = None,
-        material_id: Optional[int] = None,
-        pattern_id: Optional[int] = None,
     ):
         success_rate = self.n_success / self.n if self.n > 0 else 0
 
@@ -134,7 +145,6 @@ class VintedScraper:
             f"Success: {self.n_success} | "
             f"Success rate: {success_rate:.2f} | "
             f"Uploaded: {self.num_uploaded} | "
-            f"Inserted: {self.num_inserted} | "
         )
 
     def _upload(
@@ -181,26 +191,6 @@ class VintedScraper:
                     num_uploaded += len(rows)
 
         return num_uploaded
-
-    def _insert_from_staging(self):
-        for table_id in [ITEM_TABLE_ID, IMAGE_TABLE_ID]:
-            inserted = insert_staging_rows(
-                client=self.bq_client,
-                dataset_id=DATASET_ID,
-                table_id=table_id,
-                reference_field=self._reference_field,
-            )
-
-            self.num_inserted += max(inserted, 0)
-
-    def _reset_staging(self):
-        for table_id in [ITEM_TABLE_ID, IMAGE_TABLE_ID]:
-            reset_staging_table(
-                client=self.bq_client,
-                dataset_id=DATASET_ID,
-                table_id=table_id,
-                field_id=self._reference_field,
-            )
 
     def _process_catalog_filters(
         self,
