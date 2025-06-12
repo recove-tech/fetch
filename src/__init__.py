@@ -1,1 +1,1 @@
-from . import parse, utils, bigquery, enums, vinted, scraper
+from . import parse, utils, bigquery, enums, vinted, scraper, catalog

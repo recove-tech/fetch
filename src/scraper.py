@@ -30,6 +30,7 @@ class VintedScraper:
     def reset(self):
         self.n = 0
         self.n_success = 0
+        self.current_catalog = 0
         self.counter = 0
         self.visited = []
         self.num_uploaded = 0
@@ -46,7 +47,9 @@ class VintedScraper:
         loop = tqdm(iterable=catalogs, total=len(catalogs))
 
         for entry in loop:
+            self.current_catalog = 0
             self.counter += 1
+
             catalog_title = entry.get("title")
             catalog_id = entry.get("id")
 
@@ -126,8 +129,7 @@ class VintedScraper:
             f"Women: {women} | "
             f"Catalog: {catalog_title} | "
             f"Color: {color_id} | "
-            f"Material: {material_id} | "
-            f"Pattern: {pattern_id} | "
+            f"Items: {self.current_catalog} | "
             f"Processed: {self.n} | "
             f"Success: {self.n_success} | "
             f"Success rate: {success_rate:.2f} | "
@@ -250,6 +252,7 @@ class VintedScraper:
 
             for item in items:
                 self.n += 1
+                self.current_catalog += 1
 
                 result = parse_item(
                     item, catalog_id, self.visited, material_id, pattern_id, color_id

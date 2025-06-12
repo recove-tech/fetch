@@ -14,6 +14,8 @@ ITEM_DETAILS_TABLE_ID = "item_details"
 STAGING_ITEM_TABLE_ID = "item_staging"
 STAGING_IMAGE_TABLE_ID = "image_staging"
 
+VALID_CATALOG_CODES = ["WOMEN_ROOT", "MENS", "DESIGNER_ROOT"]
+
 CATALOG_FIELDS = ["id", "title", "code", "url", "women"]
 VALID_FILTER_KEYS = ["brand", "color", "material", "patterns"]
 

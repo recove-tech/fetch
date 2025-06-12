@@ -75,7 +75,7 @@ def _parse_item(
     item_url = item.get("url")
     if not item_url:
         return
-    
+
     brand_title = _parse_brand(item)
     if len(brand_title) >= MAX_BRAND_TITLE_LENGTH:
         return

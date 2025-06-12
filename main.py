@@ -31,7 +31,7 @@ def parse_args():
         default="None",
     )
     args = parser.parse_args()
-    
+
     if args.filter_by == "None":
         args.filter_by = None
 
@@ -50,9 +50,9 @@ def initialize_clients() -> Tuple:
 
 def load_catalogs(women: bool) -> List[Dict]:
     conditions = [
-        f"women = {women}", 
-        "is_valid = TRUE", 
-        "is_active = TRUE"
+        f"women = {women}",
+        "is_valid = TRUE",
+        "is_active = TRUE",
     ]
 
     return src.bigquery.load_table(
@@ -66,6 +66,7 @@ def load_catalogs(women: bool) -> List[Dict]:
 def main(women: bool, only_vintage: bool, filter_by: str = None):
     global bq_client, vinted_client
     bq_client, vinted_client = initialize_clients()
+
     catalogs = load_catalogs(women)
     print(f"women: {women} | filter_by: {filter_by} | catalogs: {len(catalogs)}")
 

@@ -1,6 +1,9 @@
 from typing import Literal
 
 
+ROOT_URL = lambda domain: f"https://www.vinted.{domain}"
+
+
 Domain = Literal[
     "pl",
     "fr",
