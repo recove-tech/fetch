@@ -5,6 +5,7 @@ PROJECT_ID = "recove-450509"
 DATASET_ID = "vinted"
 
 CATALOG_TABLE_ID = "catalog"
+CATALOG_IMPORTANCE_TABLE_ID = "catalog_importance"
 ITEM_TABLE_ID = "item"
 IMAGE_TABLE_ID = "image"
 CATEGORY_TABLE_ID = "category"

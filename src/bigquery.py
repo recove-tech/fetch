@@ -1,4 +1,4 @@
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional
 
 from google.oauth2 import service_account
 from google.cloud import bigquery
@@ -21,17 +21,26 @@ def init_client(credentials_dict: Dict) -> bigquery.Client:
 
 def load_table(
     client: bigquery.Client,
-    table_id: str,
-    dataset_id: str = DATASET_ID,
+    table_id: Optional[str] = None,
+    dataset_id: Optional[str] = None,
+    query: Optional[str] = None,
     conditions: List[str] = None,
     fields: List[str] = None,
     order_by: str = None,
-    descending: bool = False,
+    descending: Optional[bool] = None,
     limit: int = None,
     to_list: bool = True,
 ) -> Union[List[Dict], bigquery.table.RowIterator]:
     field_str = ", ".join(fields) if fields else "*"
-    query = f"SELECT {field_str} FROM `{PROJECT_ID}.{dataset_id}.{table_id}`"
+
+    if table_id and dataset_id:
+        source_table = f"`{PROJECT_ID}.{dataset_id}.{table_id}`"
+    elif query:
+        source_table = f"({query})"
+    else:
+        raise ValueError("Either table_id and dataset_id or query must be provided")
+
+    query = f"SELECT {field_str} FROM {source_table}"
 
     if conditions:
         query += f" WHERE {' AND '.join(conditions)}"
@@ -100,3 +109,15 @@ def reset_staging_table(
     except Exception as e:
         print(e)
         return False
+
+
+def query_catalogs_importance(importance_score: int) -> str:
+    return f"""
+    SELECT c.*
+    FROM `{PROJECT_ID}.{DATASET_ID}.{CATALOG_TABLE_ID}` AS c
+    INNER JOIN (
+    SELECT catalog_id, score
+    FROM `{PROJECT_ID}.{DATASET_ID}.{CATALOG_IMPORTANCE_TABLE_ID}`
+    WHERE score = {importance_score}
+    ) AS ci ON c.id = ci.catalog_id
+    """
