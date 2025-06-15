@@ -1,4 +1,4 @@
-name: Fetch By Color
+name: Fetch Men
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     - cron: '0 0 * * *'
 
 jobs:
-  fetch-combinations:
+  fetch-men:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,4 +22,4 @@ jobs:
       - name: Run Docker Container
         env:
           SECRETS_JSON: ${{ secrets.SECRETS_JSON }}
-        run: docker run -e SECRETS_JSON fetch --filter_by color 
+        run: docker run -e SECRETS_JSON fetch --women false --filter_by color 

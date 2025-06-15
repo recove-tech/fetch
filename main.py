@@ -14,6 +14,13 @@ REFERENCE_FIELD = "vinted_id"
 
 def parse_args():
     parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--women",
+        "-w",
+        default=True,
+        type=lambda x: x.lower() == "true",
+    )
     parser.add_argument(
         "--only_vintage",
         "-v",
@@ -59,28 +66,27 @@ def load_catalogs(women: bool) -> List[Dict]:
     )
 
 
-def main(only_vintage: bool, filter_by: str = None):
+def main(women: bool, only_vintage: bool, filter_by: str = None):
     global bq_client, vinted_client
     bq_client, vinted_client = initialize_clients()
 
-    for women in [True, False]:
-        catalogs = load_catalogs(women)
-        print(f"women: {women} | filter_by: {filter_by} | catalogs: {len(catalogs)}")
+    catalogs = load_catalogs(women)
+    print(f"women: {women} | filter_by: {filter_by} | catalogs: {len(catalogs)}")
 
-        scraper = src.scraper.VintedScraper(
-            bq_client=bq_client,
-            vinted_client=vinted_client,
-        )
+    scraper = src.scraper.VintedScraper(
+        bq_client=bq_client,
+        vinted_client=vinted_client,
+    )
 
-        scraper.run(
-            catalogs=catalogs,
-            filter_by=filter_by,
-            only_vintage=only_vintage,
-            women=women,
-        )
+    scraper.run(
+        catalogs=catalogs,
+        filter_by=filter_by,
+        only_vintage=only_vintage,
+        women=women,
+    )
 
-        scraper.insert_from_staging()
-        print(f"Inserted: {scraper.num_inserted}")
+    scraper.insert_from_staging()
+    print(f"Inserted: {scraper.num_inserted}")
 
     scraper.reset_staging()
 
