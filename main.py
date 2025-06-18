@@ -66,7 +66,11 @@ def get_dataloader(women: bool) -> List[List[Dict]]:
     }
 
     if random.random() < SHUFFLE_ALPHA:
-        loader = src.bigquery.load_table(table_id=src.enums.CATALOG_TABLE_ID, **kwargs)
+        loader = src.bigquery.load_table(
+            table_id=src.enums.CATALOG_TABLE_ID,
+            dataset_id=src.enums.DATASET_ID,
+            **kwargs
+        )
 
         return [loader]
 
