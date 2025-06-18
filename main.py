@@ -10,7 +10,7 @@ import src
 DOMAIN = "fr"
 FILTER_BY_CHOICES = ["material", "patterns", "color"]
 REFERENCE_FIELD = "vinted_id"
-SHUFFLE_ALPHA = .3
+SHUFFLE_ALPHA = .4
 
 
 def parse_args():
