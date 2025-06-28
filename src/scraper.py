@@ -50,6 +50,9 @@ class VintedScraper:
             catalog_title = entry.get("title")
             catalog_id = entry.get("id")
 
+            if not isinstance(catalog_id, int):
+                continue
+
             filters_response = self.vinted_client.catalog_filters(
                 catalog_ids=[catalog_id]
             )
@@ -95,7 +98,7 @@ class VintedScraper:
                 self._update_progress(
                     loop,
                     women,
-                    catalog_title,
+                    catalog_title or "Unknown",
                     color_id,
                 )
 
@@ -225,7 +228,7 @@ class VintedScraper:
         material_id: Optional[int] = None,
         pattern_id: Optional[int] = None,
         color_id: Optional[int] = None,
-    ) -> Tuple[List[Dict], List[Dict], List[Dict], List[Dict]] | None:
+    ) -> Optional[Tuple[List[Dict], List[Dict], List[Dict], List[Dict]]]:
         item_entries, image_entries, likes_entries, item_details_entries = (
             [],
             [],

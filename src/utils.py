@@ -77,9 +77,14 @@ def update_filter_entries(
     return entries, index
 
 
-def save_to_jsonl(data_list: List[Dict], filename: str, append: bool = False) -> None:
+def load_json_file(filepath: str) -> List[Dict]:
+    with open(filepath, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def save_to_jsonl(data_list: List[Dict], filepath: str, append: bool = False) -> None:
     mode = "a" if append else "w"
-    with open(filename, mode, encoding="utf-8") as file:
+    with open(filepath, mode, encoding="utf-8") as file:
         for item in data_list:
             json_str = json.dumps(item, ensure_ascii=False)
             file.write(json_str + "\n")

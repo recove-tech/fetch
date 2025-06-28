@@ -10,19 +10,32 @@ def parse_filters(response: VintedResponse) -> Dict:
         return {}
 
     filters = dict()
+    iterator = (response.data or {}).get("filters", [])
 
-    for entry in response.data.get("filters", []):
+    for entry in iterator:
         filter_key = entry.get("code")
+
+        if not isinstance(filter_key, str):
+            continue
 
         if filter_key in VALID_FILTER_KEYS:
             filter_options = entry.get("options", [])
+
+            if not isinstance(filter_options, list):
+                continue
 
             if filter_options:
                 option_ids, option_titles = [], []
 
                 for option in filter_options:
-                    option_ids.append(option.get("id"))
-                    option_titles.append(option.get("title"))
+                    option_id = option.get("id")
+                    option_title = option.get("title")
+
+                    if not isinstance(option_id, int):
+                        continue
+
+                    if not isinstance(option_title, str):
+                        continue
 
                 filters[filter_key] = {
                     "id": option_ids,
@@ -63,7 +76,7 @@ def _parse_item(
     material_id: Optional[int] = None,
     pattern_id: Optional[int] = None,
     color_id: Optional[int] = None,
-) -> Tuple[Dict, Dict, Dict, Dict] | None:
+) -> Optional[Tuple[Dict, Dict, Dict, Dict]]:
     vinted_id = str(item.get("id"))
     if not vinted_id:
         return
@@ -77,7 +90,7 @@ def _parse_item(
         return
 
     brand_title = _parse_brand(item)
-    if len(brand_title) >= MAX_BRAND_TITLE_LENGTH:
+    if brand_title is None or len(brand_title) >= MAX_BRAND_TITLE_LENGTH:
         return
 
     item_id = str(uuid.uuid4())
@@ -127,40 +140,43 @@ def _parse_item(
     return (item_entry, image_entry, likes_entry, item_details_entry)
 
 
-def _parse_size(item: Dict) -> str:
+def _parse_size(item: Dict) -> Optional[str]:
     size = item.get("size_title")
     if not size:
-        return
+        return None
 
     try:
         return size.split(" / ")[0].replace(",", ".")
     except:
-        return
+        return None
 
 
 def _parse_likes(item: Dict) -> int:
     try:
-        return int(item.get("favourite_count"))
+        favorite_count = item.get("favourite_count")
+        if not isinstance(favorite_count, (int, str)):
+            return 0
+        return int(favorite_count)
     except:
         return 0
 
 
-def _parse_price(item: Dict) -> float | None:
+def _parse_price(item: Dict) -> Optional[float]:
     try:
         return float(item.get("price", {}).get("amount"))
     except:
         return
 
 
-def _parse_currency(item: Dict) -> str:
+def _parse_currency(item: Dict) -> Optional[str]:
     try:
         return item.get("price", {}).get("currency_code")
     except:
-        return
+        return None
 
 
-def _parse_brand(item: Dict) -> str:
+def _parse_brand(item: Dict) -> Optional[str]:
     try:
         return item.get("brand_title")
     except:
-        return
+        return None

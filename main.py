@@ -43,7 +43,7 @@ def parse_args():
 
 
 def initialize_clients() -> Tuple:
-    secrets = json.loads(os.getenv("SECRETS_JSON"))
+    secrets = src.utils.load_json_file("secrets.json")
     gcp_credentials = secrets.get("GCP_CREDENTIALS")
 
     bq_client = src.bigquery.init_client(credentials_dict=gcp_credentials)

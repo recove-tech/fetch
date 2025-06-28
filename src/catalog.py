@@ -1,11 +1,11 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from .vinted.models import VintedResponse, VintedCatalog
 from .enums import VALID_CATALOG_CODES
 
 
 def get_all_catalogs(response: VintedResponse) -> List[Dict[str, Any]]:
-    iterator = response.data.get("dtos", {}).get("catalogs", [])
+    iterator = (response.data or {}).get("dtos", {}).get("catalogs", [])
     all_catalogs = []
 
     for entry in iterator:
@@ -45,14 +45,31 @@ def unnest(catalog: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def check_is_women(catalog: Dict[str, Any]) -> bool:
-    return "WOMEN" in catalog.get("code")
+    return "WOMEN" in catalog.get("code", "")
 
 
-def parse(entry: Dict[str, Any], is_women: bool) -> VintedCatalog:
+def parse(entry: Dict[str, Any], is_women: bool) -> Optional[VintedCatalog]:
+    id_value = entry.get("id")
+    title_value = entry.get("title")
+    code_value = entry.get("code")
+    url_value = entry.get("url")
+
+    if not isinstance(id_value, int):
+        return None
+
+    if not isinstance(title_value, str):
+        return None
+
+    if not isinstance(code_value, str):
+        return None
+
+    if not isinstance(url_value, str):
+        return None
+
     return VintedCatalog(
-        id=entry.get("id"),
-        title=entry.get("title"),
-        code=entry.get("code"),
-        url=entry.get("url"),
+        id=id_value,
+        title=title_value,
+        code=code_value,
+        url=url_value,
         women=is_women,
     )

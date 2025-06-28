@@ -1,4 +1,4 @@
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Iterable, Optional
 
 from google.oauth2 import service_account
 from google.cloud import bigquery
@@ -24,13 +24,13 @@ def load_table(
     table_id: Optional[str] = None,
     dataset_id: Optional[str] = None,
     query: Optional[str] = None,
-    conditions: List[str] = None,
-    fields: List[str] = None,
-    order_by: str = None,
+    conditions: Optional[List[str]] = None,
+    fields: Optional[List[str]] = None,
+    order_by: Optional[str] = None,
     descending: Optional[bool] = None,
-    limit: int = None,
+    limit: Optional[int] = None,
     to_list: bool = True,
-) -> Union[List[Dict], bigquery.table.RowIterator]:
+) -> Iterable:
     field_str = ", ".join(fields) if fields else "*"
 
     if table_id and dataset_id:
@@ -88,7 +88,7 @@ def insert_staging_rows(
     try:
         query_job = client.query(query)
         query_job.result()
-        return query_job.num_dml_affected_rows
+        return query_job.num_dml_affected_rows or 0
 
     except Exception as e:
         print(e)

@@ -1,4 +1,4 @@
-from typing import List, Literal, Dict
+from typing import List, Literal, Optional
 
 import requests
 import time
@@ -51,20 +51,20 @@ class Vinted:
 
     def search(
         self,
-        url: str = None,
         page: int = 1,
         per_page: int = 96,
-        query: str = None,
-        price_from: float = None,
-        price_to: float = None,
+        url: Optional[str] = None,
+        query: Optional[str] = None,
+        price_from: Optional[float] = None,
+        price_to: Optional[float] = None,
         order: SortOption = "newest_first",
-        catalog_ids: int | List[int] = None,
-        size_ids: int | List[int] = None,
-        brand_ids: int | List[int] = None,
-        status_ids: int | List[int] = None,
-        color_ids: int | List[int] = None,
-        patterns_ids: int | List[int] = None,
-        material_ids: int | List[int] = None,
+        catalog_ids: Optional[List[int]] = None,
+        size_ids: Optional[List[int]] = None,
+        brand_ids: Optional[List[int]] = None,
+        status_ids: Optional[List[int]] = None,
+        color_ids: Optional[List[int]] = None,
+        patterns_ids: Optional[List[int]] = None,
+        material_ids: Optional[List[int]] = None,
     ) -> VintedResponse:
         params = {
             "page": page,
@@ -138,11 +138,11 @@ class Vinted:
 
     def catalog_filters(
         self,
-        query: str = None,
-        catalog_ids: int = None,
-        brand_ids: int | List[int] = None,
-        status_ids: int | List[int] = None,
-        color_ids: int | List[int] = None,
+        query: Optional[str] = None,
+        catalog_ids: Optional[int] = None,
+        brand_ids: Optional[List[int]] = None,
+        status_ids: Optional[List[int]] = None,
+        color_ids: Optional[List[int]] = None,
     ) -> VintedResponse:
         params = {
             "search_text": query,
