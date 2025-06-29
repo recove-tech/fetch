@@ -3,6 +3,7 @@
 .ruff_cache/
 data/
 secrets.json
+logs/
 
 # Python
 __pycache__/
