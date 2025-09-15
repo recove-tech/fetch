@@ -153,7 +153,7 @@ class Vinted:
                 )
 
         except Exception as e:
-            response = VintedResponse(status_code=500, error=str(e))
+            model = VintedResponse(status_code=500, error=str(e))
 
         if not model.ok:
             self.fetch_cookies()
