@@ -24,6 +24,18 @@ class Vinted:
         self.proxy_config = proxy_config
         self.cookies = None
 
+        self.REQUESTS_KWARGS = {
+            "headers": {**self.BASE_HEADERS, "Referer": self.BASE_URL},
+            "allow_redirects": True,
+            "timeout": 30,
+        }
+
+        if proxy_config:
+            self.REQUESTS_KWARGS["proxies"] = {
+                "http": self.proxy_config.url,
+                "https": self.proxy_config.url,
+            }
+
     @retry_on_failure(
         max_retries=3,
         initial_delay=1.0,
@@ -72,55 +84,12 @@ class Vinted:
 
         return self._get(Endpoints.CATALOG_ITEMS, params=params)
 
-    def search_users(
-        self, query: str, page: int = 1, per_page: int = 36
-    ) -> VintedResponse:
-        params = {"page": page, "per_page": per_page, "search_text": query}
-        return self._get(Endpoints.USERS, params=params)
-
-    def item_info(self, item_id: int) -> VintedResponse:
-        return self._get(Endpoints.ITEMS, item_id)
-
-    def user_info(self, user_id: int, localize: bool = False) -> VintedResponse:
-        params = {"localize": localize}
-        return self._get(Endpoints.USER, user_id, params=params)
-
-    def user_items(
-        self,
-        user_id: int,
-        page: int = 1,
-        per_page: int = 96,
-        order: SortOption = "newest_first",
-    ) -> VintedResponse:
-        params = {"page": page, "per_page": per_page, "order": order}
-        return self._get(Endpoints.USER_ITEMS, user_id, params=params)
-
-    def user_feedbacks(
-        self,
-        user_id: int,
-        page: int = 1,
-        per_page: int = 20,
-        by: Literal["all", "user", "system"] = "all",
-    ) -> VintedResponse:
-        params = {"user_id": user_id, "page": page, "per_page": per_page, "by": by}
-        return self._get(Endpoints.USER_FEEDBACKS, params=params)
-
-    def user_feedbacks_summary(
-        self,
-        user_id: int,
-    ) -> VintedResponse:
-        params = {"user_id": user_id}
-        return self._get(
-            Endpoints.USER_FEEDBACKS_SUMMARY,
-            params=params,
-        )
-
-    def search_suggestions(self, query: str) -> VintedResponse:
-        return self._get(
-            Endpoints.SEARCH_SUGGESTIONS,
-            params={"query": query},
-        )
-
+    @retry_on_failure(
+        max_retries=3,
+        initial_delay=1.0,
+        backoff_factor=2.0,
+        exceptions=(RequestException, ConnectionError, Timeout),
+    )
     def catalog_filters(
         self,
         query: Optional[str] = None,
@@ -139,6 +108,12 @@ class Vinted:
         }
         return self._get(Endpoints.CATALOG_FILTERS, params=params)
 
+    @retry_on_failure(
+        max_retries=3,
+        initial_delay=1.0,
+        backoff_factor=2.0,
+        exceptions=(RequestException, ConnectionError, Timeout),
+    )
     def catalogs_list(self) -> VintedResponse:
         return self._get(
             Endpoints.CATALOG_INITIALIZERS,
@@ -146,21 +121,7 @@ class Vinted:
         )
 
     def _call(self, method: Literal["get"], *args, **kwargs):
-        headers = {**self.BASE_HEADERS, "Referer": self.BASE_URL}
-
-        kwargs.update(
-            {
-                "headers": headers,
-                "allow_redirects": True,
-                "timeout": 10,
-            }
-        )
-
-        if self.proxy_config:
-            kwargs["proxies"] = {
-                "http": self.proxy_config.url,
-                "https": self.proxy_config.url,
-            }
+        kwargs.update(self.REQUESTS_KWARGS)
 
         if self.cookies:
             kwargs["cookies"] = self.cookies
@@ -179,14 +140,24 @@ class Vinted:
         else:
             url = self.api_url + endpoint.value
 
-        response = self._call(method="get", url=url, *args, **kwargs)
+        try:
+            response = self._call(method="get", url=url, *args, **kwargs)
+        except Exception as e:
+            response = VintedResponse(status_code=500, error=str(e))
 
         if response.status_code == 200:
             try:
-                return VintedResponse(
+                model = VintedResponse(
                     status_code=response.status_code, data=response.json()
                 )
-            except requests.exceptions.JSONDecodeError:
-                return VintedResponse(status_code=response.status_code)
+            except Exception as e:
+                model = VintedResponse(status_code=500, error=str(e))
         else:
-            return VintedResponse(status_code=response.status_code)
+            model = VintedResponse(
+                status_code=response.status_code, error=response.text
+            )
+
+        if not model.ok:
+            self.fetch_cookies()
+
+        return model
