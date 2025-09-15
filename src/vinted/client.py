@@ -1,10 +1,10 @@
 from typing import List, Literal, Optional
 
-import requests
-import time
+import requests, time
+from requests.exceptions import RequestException, ConnectionError, Timeout
 
 from .endpoints import Endpoints
-from .utils import parse_url_to_params
+from .utils import parse_url_to_params, retry_on_failure
 from .models import VintedResponse, ProxyConfig
 from .enums import Domain, SortOption, USER_AGENT
 
@@ -24,8 +24,14 @@ class Vinted:
         self.proxy_config = proxy_config
         self.cookies = None
 
+    @retry_on_failure(
+        max_retries=3,
+        initial_delay=1.0,
+        backoff_factor=2.0,
+        exceptions=(RequestException, ConnectionError, Timeout),
+    )
     def fetch_cookies(self):
-        response = self._call(method="get", url=self.BASE_URL, use_proxy=False)
+        response = self._call(method="get", url=self.BASE_URL)
         self.cookies = response.cookies
 
     def search(
@@ -139,7 +145,7 @@ class Vinted:
             params={"page": 1, "time": time.time()},
         )
 
-    def _call(self, method: Literal["get"], use_proxy: bool = True, *args, **kwargs):
+    def _call(self, method: Literal["get"], *args, **kwargs):
         headers = {**self.BASE_HEADERS, "Referer": self.BASE_URL}
 
         kwargs.update(
@@ -150,7 +156,7 @@ class Vinted:
             }
         )
 
-        if self.proxy_config and use_proxy:
+        if self.proxy_config:
             kwargs["proxies"] = {
                 "http": self.proxy_config.url,
                 "https": self.proxy_config.url,

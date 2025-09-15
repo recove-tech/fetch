@@ -1,7 +1,42 @@
 import re
+import time
+from functools import wraps
+from typing import Callable, TypeVar, ParamSpec
+from requests.exceptions import RequestException
 
 from .exceptions import InvalidUrlException
 from urllib.parse import unquote
+
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
+def retry_on_failure(
+    max_retries: int = 3,
+    initial_delay: float = 1.0,
+    backoff_factor: float = 2.0,
+    exceptions: tuple = (RequestException,),
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+        @wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            delay = initial_delay
+            last_exception = None
+
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    if attempt < max_retries - 1:
+                        time.sleep(delay)
+                        delay *= backoff_factor
+
+            raise last_exception
+
+        return wrapper
+
+    return decorator
 
 
 def parse_url_to_params(url: str):
