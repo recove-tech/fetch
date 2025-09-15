@@ -2,9 +2,13 @@ import sys
 
 sys.path.append("../")
 
-from typing import List, Tuple, Dict
-import argparse, random
+from typing import Tuple, Optional, Iterable
+import argparse, random, logging
 import src
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 DOMAIN = "fr"
@@ -16,12 +20,6 @@ SHUFFLE_ALPHA = 0.4
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "--women",
-        "-w",
-        default=True,
-        type=lambda x: x.lower() == "true",
-    )
     parser.add_argument(
         "--only_vintage",
         "-v",
@@ -55,7 +53,7 @@ def initialize_clients() -> Tuple:
     return bq_client, vinted_client
 
 
-def get_dataloader(women: bool) -> List[List[Dict]]:
+def get_dataloader(women: bool, catalog_importance: Optional[int] = None) -> Iterable:
     conditions = [
         f"women = {women}",
         "is_valid = TRUE",
@@ -68,56 +66,54 @@ def get_dataloader(women: bool) -> List[List[Dict]]:
         "order_by": "RAND()",
     }
 
-    if random.random() < SHUFFLE_ALPHA:
+    if catalog_importance:
+        query = src.bigquery.query_catalogs_importance(catalog_importance)
+        loader = src.bigquery.load_table(
+            query=query,
+            **kwargs,
+        )
+
+    else:
         loader = src.bigquery.load_table(
             table_id=src.enums.CATALOG_TABLE_ID,
             dataset_id=src.enums.DATASET_ID,
             **kwargs,
         )
 
-        return [loader]
-
-    else:
-        loaders = []
-
-        for importance_score in range(1, 4):
-            query = src.bigquery.query_catalogs_importance(importance_score)
-
-            loader = src.bigquery.load_table(
-                query=query,
-                **kwargs,
-            )
-
-            loaders.append(loader)
-
-        return loaders
+    return loader
 
 
-def main(women: bool, only_vintage: bool, filter_by: str = None):
+def main(filter_by: str = None, only_vintage: bool = False):
     global bq_client, vinted_client
     bq_client, vinted_client = initialize_clients()
 
-    loaders = get_dataloader(women)
+    if random.random() < SHUFFLE_ALPHA:
+        catalog_importances = [None]
+    else:
+        catalog_importances = [1, 2, 3]
 
-    for loader in loaders:
-        print(f"women: {women} | filter_by: {filter_by} | catalogs: {len(loader)}")
+    for catalog_importance in catalog_importances:
+        for women in [True, False]:
+            loader = get_dataloader(women, catalog_importance)
+            logging.info(
+                f"Processing catalogs - women: {women} | filter_by: {filter_by} | catalogs: {len(loader)}"
+            )
 
-        scraper = src.scraper.VintedScraper(
-            bq_client=bq_client,
-            vinted_client=vinted_client,
-        )
+            scraper = src.scraper.VintedScraper(
+                bq_client=bq_client,
+                vinted_client=vinted_client,
+            )
 
-        scraper.run(
-            catalogs=loader,
-            filter_by=filter_by,
-            only_vintage=only_vintage,
-            women=women,
-        )
+            scraper.run(
+                catalogs=loader,
+                filter_by=filter_by,
+                only_vintage=only_vintage,
+                women=women,
+            )
 
-        scraper.insert_from_staging()
-        print(f"Inserted: {scraper.num_inserted}")
-
-        scraper.reset_staging()
+            scraper.insert_from_staging()
+            logging.info(f"Inserted {scraper.num_inserted} records")
+            scraper.reset_staging()
 
 
 if __name__ == "__main__":
