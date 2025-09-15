@@ -23,6 +23,9 @@ def main():
     index = [entry["id"] for entry in bq_dataset]
 
     response = vinted_client.catalogs_list()
+    if not response.ok:
+        raise Exception(response.error)
+
     vinted_dataset = src.catalog.get_all_catalogs(response)
 
     new_catalogs, bq_rows = [], []
