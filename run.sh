@@ -6,14 +6,12 @@ log_event() {
 
 log_event "START" "Beginning script execution"
 
-echo "Running for women..."
-log_event "INFO" "Starting women's data processing"
-python main.py -w True -fby color
-log_event "INFO" "Completed women's data processing"
+echo "Activating virtual environment..."
+source venv/bin/activate
 
-echo -e "\nRunning for men..."
-log_event "INFO" "Starting men's data processing"
-python main.py -w False -fby color
-log_event "INFO" "Completed men's data processing"
+echo "Running..."
+log_event "INFO" "Starting data processing"
+python3 main.py -fby color
+log_event "INFO" "Completed data processing"
 
 log_event "END" "Script execution completed" 
