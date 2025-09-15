@@ -142,20 +142,18 @@ class Vinted:
 
         try:
             response = self._call(method="get", url=url, *args, **kwargs)
-        except Exception as e:
-            response = VintedResponse(status_code=500, error=str(e))
 
-        if response.status_code == 200:
-            try:
+            if response.status_code == 200:
                 model = VintedResponse(
                     status_code=response.status_code, data=response.json()
                 )
-            except Exception as e:
-                model = VintedResponse(status_code=500, error=str(e))
-        else:
-            model = VintedResponse(
-                status_code=response.status_code, error=response.text
-            )
+            else:
+                model = VintedResponse(
+                    status_code=response.status_code, error=response.text
+                )
+
+        except Exception as e:
+            response = VintedResponse(status_code=500, error=str(e))
 
         if not model.ok:
             self.fetch_cookies()
