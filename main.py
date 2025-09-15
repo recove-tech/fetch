@@ -14,7 +14,7 @@ logging.basicConfig(
 DOMAIN = "fr"
 FILTER_BY_CHOICES = ["material", "patterns", "color"]
 REFERENCE_FIELD = "vinted_id"
-SHUFFLE_ALPHA = 0.4
+MAIN_CATALOG_IMPORTANCE_ALPHA = 1.0
 
 
 def parse_args():
@@ -53,6 +53,13 @@ def initialize_clients() -> Tuple:
     return bq_client, vinted_client
 
 
+def get_catalog_importance() -> Optional[int]:
+    if random.random() < MAIN_CATALOG_IMPORTANCE_ALPHA:
+        return 1
+
+    return 2
+
+
 def get_dataloader(women: bool, catalog_importance: Optional[int] = None) -> Iterable:
     conditions = [
         f"women = {women}",
@@ -87,33 +94,33 @@ def main(filter_by: str = None, only_vintage: bool = False):
     global bq_client, vinted_client
     bq_client, vinted_client = initialize_clients()
 
-    if random.random() < SHUFFLE_ALPHA:
-        catalog_importances = [None]
-    else:
-        catalog_importances = [1, 2, 3]
+    catalog_importance = get_catalog_importance()
 
-    for catalog_importance in catalog_importances:
-        for women in [True, False]:
-            loader = get_dataloader(women, catalog_importance)
-            logging.info(
-                f"Processing catalogs - women: {women} | filter_by: {filter_by} | catalogs: {len(loader)}"
-            )
+    for women in [True, False]:
+        loader = get_dataloader(women, catalog_importance)
 
-            scraper = src.scraper.VintedScraper(
-                bq_client=bq_client,
-                vinted_client=vinted_client,
-            )
+        logging.info(
+            f"Processing catalogs - women: {women} | "
+            f"catalog_importance: {catalog_importance} | "
+            f"catalogs: {len(loader)}"
+        )
 
-            scraper.run(
-                catalogs=loader,
-                filter_by=filter_by,
-                only_vintage=only_vintage,
-                women=women,
-            )
+        scraper = src.scraper.VintedScraper(
+            bq_client=bq_client,
+            vinted_client=vinted_client,
+        )
 
-            scraper.insert_from_staging()
-            logging.info(f"Inserted {scraper.num_inserted} records")
-            scraper.reset_staging()
+        scraper.run(
+            catalogs=loader,
+            filter_by=filter_by,
+            only_vintage=only_vintage,
+            women=women,
+        )
+
+        scraper.insert_from_staging()
+        logging.info(f"Inserted {scraper.num_inserted} records")
+
+    scraper.reset_staging()
 
 
 if __name__ == "__main__":
