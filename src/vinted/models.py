@@ -7,8 +7,13 @@ from .enums import Domain, ROOT_URL
 
 @dataclass
 class VintedResponse:
-    status_code: int
+    status_code: int = 500
     data: Optional[Dict] = None
+    error: Optional[str] = None
+
+    @property
+    def ok(self) -> bool:
+        return self.status_code == 200
 
 
 @dataclass
