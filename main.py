@@ -50,6 +50,7 @@ def initialize_clients() -> Tuple:
 
     proxy_config = src.vinted.ProxyConfig(password=secrets.get("APIFY_PROXY_PASSWORD"))
     vinted_client = src.vinted.Vinted(domain=DOMAIN, proxy_config=proxy_config)
+    vinted_client.fetch_cookies()
 
     return bq_client, vinted_client
 
