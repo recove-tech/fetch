@@ -37,6 +37,9 @@ def parse_filters(response: VintedResponse) -> Dict:
                     if not isinstance(option_title, str):
                         continue
 
+                    option_ids.append(option_id)
+                    option_titles.append(option_title)
+
                 filters[filter_key] = {
                     "id": option_ids,
                     "title": option_titles,
