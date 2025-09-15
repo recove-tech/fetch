@@ -1,2 +1,2 @@
 from .client import Vinted
-from .models import VintedResponse
+from .models import VintedResponse, ProxyConfig

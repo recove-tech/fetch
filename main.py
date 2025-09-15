@@ -3,14 +3,14 @@ import sys
 sys.path.append("../")
 
 from typing import List, Tuple, Dict
-import json, os, argparse, random
+import argparse, random
 import src
 
 
 DOMAIN = "fr"
 FILTER_BY_CHOICES = ["material", "patterns", "color"]
 REFERENCE_FIELD = "vinted_id"
-SHUFFLE_ALPHA = .4
+SHUFFLE_ALPHA = 0.4
 
 
 def parse_args():
@@ -44,10 +44,12 @@ def parse_args():
 
 def initialize_clients() -> Tuple:
     secrets = src.utils.load_json_file("secrets.json")
-    gcp_credentials = secrets.get("GCP_CREDENTIALS")
 
+    gcp_credentials = secrets.get("GCP_CREDENTIALS")
     bq_client = src.bigquery.init_client(credentials_dict=gcp_credentials)
-    vinted_client = src.vinted.Vinted(domain=DOMAIN)
+
+    proxy_config = src.vinted.ProxyConfig(password=secrets.get("APIFY_PROXY_PASSWORD"))
+    vinted_client = src.vinted.Vinted(domain=DOMAIN, proxy_config=proxy_config)
 
     return bq_client, vinted_client
 
@@ -69,7 +71,7 @@ def get_dataloader(women: bool) -> List[List[Dict]]:
         loader = src.bigquery.load_table(
             table_id=src.enums.CATALOG_TABLE_ID,
             dataset_id=src.enums.DATASET_ID,
-            **kwargs
+            **kwargs,
         )
 
         return [loader]
