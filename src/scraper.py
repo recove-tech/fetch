@@ -56,6 +56,7 @@ class VintedScraper:
             filters_response = self.vinted_client.catalog_filters(
                 catalog_ids=[catalog_id]
             )
+
             filters = parse_filters(filters_response)
 
             search_kwargs_list = self._process_catalog_filters(
@@ -75,6 +76,8 @@ class VintedScraper:
                 color_id = search_kwargs.get("color_ids", [None])[0]
 
                 response = self.vinted_client.search(**search_kwargs)
+                if not response.ok:
+                    continue
 
                 results = self._process_search_response(
                     response, catalog_id, material_id, pattern_id, color_id
