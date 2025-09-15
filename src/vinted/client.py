@@ -54,7 +54,7 @@ class Vinted:
         query: Optional[str] = None,
         price_from: Optional[float] = None,
         price_to: Optional[float] = None,
-        order: SortOption = "newest_first",
+        order: SortOption = "relevance",
         catalog_ids: Optional[List[int]] = None,
         size_ids: Optional[List[int]] = None,
         brand_ids: Optional[List[int]] = None,
@@ -84,12 +84,6 @@ class Vinted:
 
         return self._get(Endpoints.CATALOG_ITEMS, params=params)
 
-    @retry_on_failure(
-        max_retries=3,
-        initial_delay=1.0,
-        backoff_factor=2.0,
-        exceptions=(RequestException, ConnectionError, Timeout),
-    )
     def catalog_filters(
         self,
         query: Optional[str] = None,
@@ -108,12 +102,6 @@ class Vinted:
         }
         return self._get(Endpoints.CATALOG_FILTERS, params=params)
 
-    @retry_on_failure(
-        max_retries=3,
-        initial_delay=1.0,
-        backoff_factor=2.0,
-        exceptions=(RequestException, ConnectionError, Timeout),
-    )
     def catalogs_list(self) -> VintedResponse:
         return self._get(
             Endpoints.CATALOG_INITIALIZERS,
@@ -154,8 +142,5 @@ class Vinted:
 
         except Exception as e:
             model = VintedResponse(status_code=500, error=str(e))
-
-        if not model.ok:
-            self.fetch_cookies()
 
         return model
