@@ -1,13 +1,12 @@
 import re
 import time
 from functools import wraps
-from typing import Callable, TypeVar, ParamSpec
+from typing import Callable, TypeVar, Any
 from requests.exceptions import RequestException
 
 from .exceptions import InvalidUrlException
 from urllib.parse import unquote
 
-P = ParamSpec("P")
 T = TypeVar("T")
 
 
@@ -16,10 +15,10 @@ def retry_on_failure(
     initial_delay: float = 1.0,
     backoff_factor: float = 2.0,
     exceptions: tuple = (RequestException,),
-) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             delay = initial_delay
             last_exception = None
 
