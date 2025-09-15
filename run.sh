@@ -11,7 +11,7 @@ source venv/bin/activate
 
 echo "Running..."
 log_event "INFO" "Starting data processing"
-python3 main.py -fby color
+python3 main.py
 log_event "INFO" "Completed data processing"
 
 log_event "END" "Script execution completed" 

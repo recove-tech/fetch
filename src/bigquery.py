@@ -112,12 +112,15 @@ def reset_staging_table(
 
 
 def query_catalogs_importance(importance_score: int) -> str:
-    return f"""
-    SELECT c.*
-    FROM `{PROJECT_ID}.{DATASET_ID}.{CATALOG_TABLE_ID}` AS c
-    INNER JOIN (
+    catalog_importance_query = f"""
     SELECT catalog_id, score
     FROM `{PROJECT_ID}.{DATASET_ID}.{CATALOG_IMPORTANCE_TABLE_ID}`
     WHERE score = {importance_score}
-    ) AS ci ON c.id = ci.catalog_id
+    """
+
+    return f"""
+    SELECT c.*
+    FROM `{PROJECT_ID}.{DATASET_ID}.{CATALOG_TABLE_ID}` AS c
+    INNER JOIN ({catalog_importance_query}) AS ci ON c.id = ci.catalog_id
+    ORDER BY RAND()
     """
