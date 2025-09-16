@@ -7,7 +7,9 @@ import argparse, random, logging
 import src
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("logs/run.log"), logging.StreamHandler()],
 )
 
 
@@ -15,11 +17,19 @@ DOMAIN = "fr"
 FILTER_BY_CHOICES = ["material", "patterns", "color"]
 REFERENCE_FIELD = "vinted_id"
 MAIN_CATALOG_IMPORTANCE_ALPHA = 1.0
+NUM_CATALOGS = None
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
+    parser.add_argument(
+        "--vinted_domain",
+        "-domain",
+        choices=src.vinted.VALID_VINTED_DOMAINS,
+        default=DOMAIN,
+        required=True,
+    )
     parser.add_argument(
         "--only_vintage",
         "-v",
@@ -40,14 +50,14 @@ def parse_args():
     return vars(args)
 
 
-def initialize_clients() -> Tuple:
+def initialize_clients(vinted_domain: src.vinted.Domain) -> Tuple:
     secrets = src.utils.load_json_file("secrets.json")
 
     gcp_credentials = secrets.get("GCP_CREDENTIALS")
     bq_client = src.bigquery.init_client(credentials_dict=gcp_credentials)
 
     proxy_config = src.vinted.ProxyConfig(password=secrets.get("APIFY_PROXY_PASSWORD"))
-    vinted_client = src.vinted.Vinted(domain=DOMAIN, proxy_config=proxy_config)
+    vinted_client = src.vinted.Vinted(domain=vinted_domain, proxy_config=proxy_config)
     vinted_client.fetch_cookies()
 
     return bq_client, vinted_client
@@ -74,7 +84,7 @@ def get_dataloader(women: bool, catalog_importance: Optional[int] = None) -> Ite
     }
 
     if catalog_importance:
-        query = src.bigquery.query_catalogs_importance(catalog_importance)
+        query = src.bigquery.query_catalogs_importance(catalog_importance, NUM_CATALOGS)
         loader = src.bigquery.load_table(
             query=query,
             **kwargs,
@@ -90,9 +100,18 @@ def get_dataloader(women: bool, catalog_importance: Optional[int] = None) -> Ite
     return loader
 
 
-def main(filter_by: str = None, only_vintage: bool = False):
+def main(
+    vinted_domain: str = src.vinted.Domain,
+    filter_by: str = None,
+    only_vintage: bool = False,
+):
     global bq_client, vinted_client
-    bq_client, vinted_client = initialize_clients()
+    bq_client, vinted_client = initialize_clients(vinted_domain)
+
+    scraper = src.scraper.VintedScraper(
+        bq_client=bq_client,
+        vinted_client=vinted_client,
+    )
 
     catalog_importance = get_catalog_importance()
 
@@ -100,21 +119,16 @@ def main(filter_by: str = None, only_vintage: bool = False):
         loader = get_dataloader(women, catalog_importance)
 
         logging.info(
-            f"Processing catalogs - women: {women} | "
+            f"vinted_domain: {vinted_domain} | "
+            f"women: {women} | "
             f"catalog_importance: {catalog_importance} | "
             f"catalogs: {len(loader)}"
-        )
-
-        scraper = src.scraper.VintedScraper(
-            bq_client=bq_client,
-            vinted_client=vinted_client,
         )
 
         scraper.run(
             catalogs=loader,
             filter_by=filter_by,
             only_vintage=only_vintage,
-            women=women,
         )
 
         scraper.insert_from_staging()

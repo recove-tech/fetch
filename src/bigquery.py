@@ -69,7 +69,9 @@ def upload(
         errors = client.insert_rows_json(
             table=f"{PROJECT_ID}.{dataset_id}.{table_id}", json_rows=rows
         )
+
         return len(errors) == 0
+
     except Exception as e:
         print(e)
         return False
@@ -78,11 +80,21 @@ def upload(
 def insert_staging_rows(
     client: bigquery.Client, dataset_id: str, table_id: str, reference_field: str
 ) -> int:
+    deduped_query = f"""
+SELECT s.*,
+ROW_NUMBER() OVER (PARTITION BY {reference_field} ORDER BY created_at DESC) AS rn
+FROM `{PROJECT_ID}.{dataset_id}.{table_id}_staging` s
+    """
+
+    to_remove_clause = (
+        f"SELECT {reference_field} FROM `{PROJECT_ID}.{dataset_id}.{table_id}`"
+    )
+
     query = f"""
-    INSERT INTO `{PROJECT_ID}.{dataset_id}.{table_id}`
-    SELECT * FROM `{PROJECT_ID}.{dataset_id}.{table_id}_staging`
-    WHERE {reference_field} NOT IN (SELECT {reference_field} FROM `{PROJECT_ID}.{dataset_id}.{table_id}`)
-    ORDER BY RAND()
+INSERT INTO `{PROJECT_ID}.{dataset_id}.{table_id}`
+SELECT * EXCEPT(rn)
+FROM ({deduped_query}) deduped
+WHERE rn = 1 AND {reference_field} NOT IN ({to_remove_clause});
     """
 
     try:
@@ -99,8 +111,8 @@ def reset_staging_table(
     client: bigquery.Client, dataset_id: str, table_id: str, field_id: str
 ) -> bool:
     query = f"""
-    CREATE OR REPLACE TABLE `{PROJECT_ID}.{dataset_id}.{table_id}_staging` AS
-    SELECT * FROM `{PROJECT_ID}.{dataset_id}.{table_id}` LIMIT 0;
+CREATE OR REPLACE TABLE `{PROJECT_ID}.{dataset_id}.{table_id}_staging` AS
+SELECT * FROM `{PROJECT_ID}.{dataset_id}.{table_id}` LIMIT 0;
     """
 
     try:
@@ -111,16 +123,21 @@ def reset_staging_table(
         return False
 
 
-def query_catalogs_importance(importance_score: int) -> str:
+def query_catalogs_importance(importance_score: int, n: Optional[int] = None) -> str:
     catalog_importance_query = f"""
-    SELECT catalog_id, score
-    FROM `{PROJECT_ID}.{DATASET_ID}.{CATALOG_IMPORTANCE_TABLE_ID}`
-    WHERE score = {importance_score}
+SELECT catalog_id, score
+FROM `{PROJECT_ID}.{DATASET_ID}.{CATALOG_IMPORTANCE_TABLE_ID}`
+WHERE score = {importance_score}
     """
 
-    return f"""
-    SELECT c.*
-    FROM `{PROJECT_ID}.{DATASET_ID}.{CATALOG_TABLE_ID}` AS c
-    INNER JOIN ({catalog_importance_query}) AS ci ON c.id = ci.catalog_id
-    ORDER BY RAND()
+    query = f"""
+SELECT c.*
+FROM `{PROJECT_ID}.{DATASET_ID}.{CATALOG_TABLE_ID}` AS c
+INNER JOIN ({catalog_importance_query}) AS ci ON c.id = ci.catalog_id
+ORDER BY RAND()
     """
+
+    if n:
+        query += f"LIMIT {n}"
+
+    return query

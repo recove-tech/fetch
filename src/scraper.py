@@ -1,12 +1,12 @@
 from typing import List, Dict, Tuple, Optional, Iterable
 
-import random
 from tqdm import tqdm
 from google.cloud import bigquery
 
 from .vinted import Vinted, VintedResponse
+from .preprocess import prepare_search_kwargs
 from .parse import parse_filters, parse_item
-from .utils import random_sleep, prepare_search_kwargs
+from .utils import random_sleep
 from .bigquery import insert_staging_rows, reset_staging_table, upload
 from .enums import *
 
@@ -19,8 +19,9 @@ class VintedScraper:
     ):
         self.bq_client = bq_client
         self.vinted_client = vinted_client
+        self.vinted_client.set_use_proxy(False)
 
-        self._reference_field = "vinted_id"
+        self._reference_field = DEFAULT_REFERENCE_FIELD
         self._filter_batch_size = 1
 
         self.reset()
@@ -37,9 +38,8 @@ class VintedScraper:
     def run(
         self,
         catalogs: List[Dict],
-        filter_by: str,
-        only_vintage: bool,
-        women: bool,
+        filter_by: Optional[str] = None,
+        only_vintage: bool = False,
     ):
         loop = tqdm(iterable=catalogs, total=len(catalogs))
 
@@ -49,12 +49,13 @@ class VintedScraper:
 
             catalog_title = entry.get("title")
             catalog_id = entry.get("id")
+            women = entry.get("women")
 
             if not isinstance(catalog_id, int):
                 continue
 
             filters_response = self.vinted_client.catalog_filters(
-                catalog_ids=[catalog_id]
+                catalog_ids=[catalog_id],
             )
 
             filters = parse_filters(filters_response)
@@ -63,7 +64,7 @@ class VintedScraper:
                 catalog_id, filters, filter_by, only_vintage
             )
 
-            item_entries, image_entries, likes_entries, item_details_entries = (
+            item_entries, image_entries, item_details_entries, localization_entries = (
                 [],
                 [],
                 [],
@@ -89,24 +90,27 @@ class VintedScraper:
                 (
                     new_item_entries,
                     new_image_entries,
-                    new_likes_entries,
                     new_item_details_entries,
+                    new_localization_entries,
                 ) = results
 
                 item_entries.extend(new_item_entries)
                 image_entries.extend(new_image_entries)
-                likes_entries.extend(new_likes_entries)
                 item_details_entries.extend(new_item_details_entries)
+                localization_entries.extend(new_localization_entries)
 
                 self._update_progress(
                     loop,
                     women,
-                    catalog_title or "Unknown",
+                    catalog_title,
                     color_id,
                 )
 
             self.num_uploaded += self._upload(
-                item_entries, image_entries, likes_entries, item_details_entries
+                item_entries,
+                image_entries,
+                item_details_entries,
+                localization_entries,
             )
 
     def insert_from_staging(self):
@@ -157,25 +161,23 @@ class VintedScraper:
         self,
         item_entries: List[Dict],
         image_entries: List[Dict],
-        likes_entries: List[Dict],
         item_details_entries: List[Dict],
+        localization_entries: List[Dict],
     ) -> int:
         num_uploaded = 0
-
-        random.shuffle(item_entries)
 
         all_rows = [
             item_entries,
             image_entries,
-            likes_entries,
             item_details_entries,
+            localization_entries,
         ]
 
         all_table_ids = [
             STAGING_ITEM_TABLE_ID,
             STAGING_IMAGE_TABLE_ID,
-            LIKES_TABLE_ID,
             ITEM_DETAILS_TABLE_ID,
+            LOCALIZATION_TABLE_ID,
         ]
 
         for table_id, rows in zip(all_table_ids, all_rows):
@@ -232,7 +234,7 @@ class VintedScraper:
         pattern_id: Optional[int] = None,
         color_id: Optional[int] = None,
     ) -> Optional[Tuple[List[Dict], List[Dict], List[Dict], List[Dict]]]:
-        item_entries, image_entries, likes_entries, item_details_entries = (
+        item_entries, image_entries, item_details_entries, localization_entries = (
             [],
             [],
             [],
@@ -244,27 +246,33 @@ class VintedScraper:
             return
 
         elif response.status_code == 200 and isinstance(response.data, dict):
-            items = response.data.get("items", [])
+            data_list = response.data.get("items", [])
 
-            for item in items:
+            for data in data_list:
                 self.n += 1
                 self.current_catalog += 1
 
                 result = parse_item(
-                    item, catalog_id, self.visited, material_id, pattern_id, color_id
+                    data=data,
+                    catalog_id=catalog_id,
+                    vinted_domain=self.vinted_client.domain,
+                    visited=self.visited,
+                    material_id=material_id,
+                    pattern_id=pattern_id,
+                    color_id=color_id,
                 )
 
                 if not result:
                     continue
 
-                item_entry, image_entry, likes_entry, item_details_entry = result
+                item, image, item_details, localization = result
 
-                item_entries.append(item_entry)
-                image_entries.append(image_entry)
-                likes_entries.append(likes_entry)
-                item_details_entries.append(item_details_entry)
+                item_entries.append(item.to_dict())
+                image_entries.append(image.to_dict())
+                item_details_entries.append(item_details.to_dict())
+                localization_entries.append(localization.to_dict())
 
-                self.visited.append(item_entry.get("vinted_id"))
+                self.visited.append(item.id)
                 self.n_success += 1
 
-        return item_entries, image_entries, likes_entries, item_details_entries
+        return item_entries, image_entries, item_details_entries, localization_entries

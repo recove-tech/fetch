@@ -11,9 +11,12 @@ IMAGE_TABLE_ID = "image"
 CATEGORY_TABLE_ID = "category"
 LIKES_TABLE_ID = "likes"
 ITEM_DETAILS_TABLE_ID = "item_details"
+LOCALIZATION_TABLE_ID = "localization"
 
 STAGING_ITEM_TABLE_ID = "item_staging"
 STAGING_IMAGE_TABLE_ID = "image_staging"
+
+DEFAULT_REFERENCE_FIELD = "vinted_id"
 
 VALID_CATALOG_CODES = ["WOMEN_ROOT", "MENS", "DESIGNER_ROOT"]
 

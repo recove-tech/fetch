@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Dict
 
 import requests, time
 from requests.exceptions import RequestException, ConnectionError, Timeout
@@ -21,20 +21,17 @@ class Vinted:
     ) -> None:
         self.BASE_URL = f"https://www.vinted.{domain}"
         self.api_url = f"{self.BASE_URL}/api/v2"
+
+        self.domain = domain
         self.proxy_config = proxy_config
         self.cookies = None
+        self._use_proxy = False
 
         self.REQUESTS_KWARGS = {
             "headers": {**self.BASE_HEADERS, "Referer": self.BASE_URL},
             "allow_redirects": True,
             "timeout": 30,
         }
-
-        if proxy_config:
-            self.REQUESTS_KWARGS["proxies"] = {
-                "http": self.proxy_config.url,
-                "https": self.proxy_config.url,
-            }
 
     @retry_on_failure(
         max_retries=3,
@@ -108,18 +105,13 @@ class Vinted:
             params={"page": 1, "time": time.time()},
         )
 
-    def _call(self, method: Literal["get"], *args, **kwargs):
-        kwargs.update(self.REQUESTS_KWARGS)
-
-        if self.cookies:
-            kwargs["cookies"] = self.cookies
-
-        return requests.request(method=method, *args, **kwargs)
+    def set_use_proxy(self, value: bool):
+        self._use_proxy = value
 
     def _get(
         self,
         endpoint: Endpoints,
-        format_values=None,
+        format_values: Optional[Dict] = None,
         *args,
         **kwargs,
     ) -> VintedResponse:
@@ -143,4 +135,24 @@ class Vinted:
         except Exception as e:
             model = VintedResponse(status_code=500, error=str(e))
 
+        if not model.ok and not self._use_proxy and self.proxy_config:
+            self.set_use_proxy(True)
+            return self._get(endpoint, format_values, *args, **kwargs)
+
         return model
+
+    def _call(self, method: Literal["get"], *args, **kwargs):
+        kwargs.update(self.REQUESTS_KWARGS)
+        use_proxy = self._use_proxy or not self.cookies
+        print(f"{use_proxy=}")
+
+        if self.cookies:
+            kwargs["cookies"] = self.cookies
+
+        if self.proxy_config and use_proxy:
+            kwargs["proxies"] = {
+                "http": self.proxy_config.url,
+                "https": self.proxy_config.url,
+            }
+
+        return requests.request(method=method, *args, **kwargs)

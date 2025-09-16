@@ -1,8 +1,8 @@
 from typing import Dict, Tuple, Optional, List
 
-import uuid, datetime
 from .enums import VALID_FILTER_KEYS, MAX_BRAND_TITLE_LENGTH
-from .vinted.models import VintedResponse
+from .vinted import VintedResponse, Domain
+from .models import Item, Image, ItemDetails, ItemLocalization
 
 
 def parse_filters(response: VintedResponse) -> Dict:
@@ -49,102 +49,99 @@ def parse_filters(response: VintedResponse) -> Dict:
 
 
 def parse_item(
-    item: Dict,
+    data: Dict,
     catalog_id: int,
-    visited: List[int],
+    vinted_domain: Domain,
+    visited: List[int] = [],
     material_id: Optional[int] = None,
     pattern_id: Optional[int] = None,
     color_id: Optional[int] = None,
-) -> Optional[Tuple[Dict, Dict, Dict, Dict]]:
+) -> Optional[Tuple[Item, Image, ItemDetails, ItemLocalization]]:
     try:
-        result = _parse_item(item, catalog_id, material_id, pattern_id, color_id)
+        result = _parse_item(
+            data=data,
+            catalog_id=catalog_id,
+            vinted_domain=vinted_domain,
+            material_id=material_id,
+            pattern_id=pattern_id,
+            color_id=color_id,
+        )
 
         if not result:
-            return
+            return None
 
-        item_entry, image_entry, likes_entry, item_details_entry = result
+        item_entry, image_entry, item_details_entry, localization_entry = result
 
-        if item_entry.get("vinted_id") in visited:
-            return
+        if item_entry.vinted_id in visited:
+            return None
 
-        return item_entry, image_entry, likes_entry, item_details_entry
+        return item_entry, image_entry, item_details_entry, localization_entry
 
     except:
-        return
+        return None
 
 
 def _parse_item(
-    item: Dict,
+    data: Dict,
     catalog_id: int,
+    vinted_domain: Domain,
     material_id: Optional[int] = None,
     pattern_id: Optional[int] = None,
     color_id: Optional[int] = None,
-) -> Optional[Tuple[Dict, Dict, Dict, Dict]]:
-    vinted_id = str(item.get("id"))
+) -> Optional[Tuple[Item, Image, ItemDetails, ItemLocalization]]:
+    vinted_id = str(data.get("id"))
     if not vinted_id:
-        return
+        return None
 
-    image_url = item.get("photo", {}).get("url")
+    image_url = data.get("photo", {}).get("url")
     if not image_url:
-        return
+        return None
 
-    item_url = item.get("url")
+    item_url = data.get("url")
     if not item_url:
-        return
+        return None
 
-    brand_title = _parse_brand(item)
+    brand_title = _parse_brand(data)
     if brand_title is None or len(brand_title) >= MAX_BRAND_TITLE_LENGTH:
-        return
+        return None
 
-    item_id = str(uuid.uuid4())
-    created_at = datetime.datetime.now().isoformat()
-    unix_created_at = int(datetime.datetime.now().timestamp())
+    parsed_item = Item(
+        vinted_id=vinted_id,
+        catalog_id=catalog_id,
+        title=data["title"],
+        url=item_url,
+        price=_parse_price(data),
+        currency=_parse_currency(data),
+        brand=brand_title,
+        size=_parse_size(data),
+        condition=data.get("status"),
+        is_available=True,
+    )
 
-    item_entry = {
-        "id": item_id,
-        "vinted_id": vinted_id,
-        "catalog_id": catalog_id,
-        "title": item.get("title"),
-        "url": item_url,
-        "price": _parse_price(item),
-        "currency": _parse_currency(item),
-        "brand": brand_title,
-        "size": _parse_size(item),
-        "condition": item.get("status"),
-        "is_available": True,
-        "created_at": created_at,
-        "updated_at": created_at,
-        "unix_created_at": unix_created_at,
-    }
+    image = Image(
+        vinted_id=vinted_id,
+        url=image_url,
+        nobg=False,
+        size="original",
+    )
 
-    image_entry = {
-        "id": str(uuid.uuid4()),
-        "vinted_id": vinted_id,
-        "url": image_url,
-        "nobg": False,
-        "size": "original",
-        "created_at": created_at,
-    }
+    item_details = ItemDetails(
+        item_id=parsed_item.id,
+        material_id=material_id,
+        pattern_id=pattern_id,
+        color_id=color_id,
+    )
 
-    likes_entry = {
-        "vinted_id": vinted_id,
-        "count": _parse_likes(item),
-        "created_at": created_at,
-    }
+    localization = ItemLocalization(
+        item_id=parsed_item.id,
+        domain=vinted_domain,
+    )
 
-    item_details_entry = {
-        "item_id": item_id,
-        "material_id": material_id,
-        "pattern_id": pattern_id,
-        "color_id": color_id,
-        "created_at": created_at,
-    }
-
-    return (item_entry, image_entry, likes_entry, item_details_entry)
+    return parsed_item, image, item_details, localization
 
 
-def _parse_size(item: Dict) -> Optional[str]:
-    size = item.get("size_title")
+def _parse_size(data: Dict) -> Optional[str]:
+    size = data.get("size_title")
     if not size:
         return None
 
@@ -154,32 +151,22 @@ def _parse_size(item: Dict) -> Optional[str]:
         return None
 
 
-def _parse_likes(item: Dict) -> int:
+def _parse_price(data: Dict) -> Optional[float]:
     try:
-        favorite_count = item.get("favourite_count")
-        if not isinstance(favorite_count, (int, str)):
-            return 0
-        return int(favorite_count)
-    except:
-        return 0
-
-
-def _parse_price(item: Dict) -> Optional[float]:
-    try:
-        return float(item.get("price", {}).get("amount"))
+        return float(data.get("price", {}).get("amount"))
     except:
         return
 
 
-def _parse_currency(item: Dict) -> Optional[str]:
+def _parse_currency(data: Dict) -> Optional[str]:
     try:
-        return item.get("price", {}).get("currency_code")
+        return data.get("price", {}).get("currency_code")
     except:
         return None
 
 
-def _parse_brand(item: Dict) -> Optional[str]:
+def _parse_brand(data: Dict) -> Optional[str]:
     try:
-        return item.get("brand_title")
+        return data.get("brand_title")
     except:
         return None

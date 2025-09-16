@@ -35,7 +35,7 @@ def main():
             new_catalogs.append(entry)
             bq_rows.append(entry.to_dict())
 
-    print(f"New catalogs: {len(new_catalogs)}")
+    print(f"catalogs: {len(new_catalogs)}")
 
     success = src.bigquery.upload(
         client=bq_client,
@@ -44,7 +44,7 @@ def main():
         rows=bq_rows,
     )
 
-    print(f"Upload: {success}")
+    print(f"{success=}")
 
 
 if __name__ == "__main__":
