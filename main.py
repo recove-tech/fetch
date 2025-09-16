@@ -2,7 +2,7 @@ import sys
 
 sys.path.append("../")
 
-from typing import Tuple, Optional, Iterable
+from typing import Tuple, Optional, Iterable, Dict
 import argparse, random, logging
 import src
 
@@ -20,7 +20,7 @@ MAIN_CATALOG_IMPORTANCE_ALPHA = 1.0
 NUM_CATALOGS = None
 
 
-def parse_args():
+def parse_args() -> Dict:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
