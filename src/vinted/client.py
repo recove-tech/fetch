@@ -144,7 +144,6 @@ class Vinted:
     def _call(self, method: Literal["get"], *args, **kwargs):
         kwargs.update(self.REQUESTS_KWARGS)
         use_proxy = self._use_proxy or not self.cookies
-        print(f"{use_proxy=}")
 
         if self.cookies:
             kwargs["cookies"] = self.cookies
