@@ -5,18 +5,22 @@ sys.path.append("../")
 
 
 import src
-import json, os
+
+
+SECRETS_PATH = "../secrets.json"
 
 
 def main():
-    secrets = json.loads(os.getenv("SECRETS_JSON"))
+    secrets = src.utils.load_json_file(SECRETS_PATH)
     gcp_credentials = secrets.get("GCP_CREDENTIALS")
 
-    bq_client = src.bigquery.init_client(credentials_dict=gcp_credentials)
     vinted_client = src.vinted.Vinted(domain="fr")
+    vinted_client.fetch_cookies()
 
+    bq_client = src.bigquery.init_client(credentials_dict=gcp_credentials)
     bq_dataset = src.bigquery.load_table(
         client=bq_client,
+        dataset_id=src.enums.DATASET_ID,
         table_id=src.enums.CATALOG_TABLE_ID,
     )
 
@@ -27,15 +31,12 @@ def main():
         raise Exception(response.error)
 
     vinted_dataset = src.catalog.get_all_catalogs(response)
-
     new_catalogs, bq_rows = [], []
 
     for entry in vinted_dataset:
         if entry.id not in index:
             new_catalogs.append(entry)
             bq_rows.append(entry.to_dict())
-
-    print(f"catalogs: {len(new_catalogs)}")
 
     success = src.bigquery.upload(
         client=bq_client,
