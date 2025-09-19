@@ -18,7 +18,7 @@ DOMAIN = "fr"
 FILTER_BY_CHOICES = ["material", "patterns", "color"]
 REFERENCE_FIELD = "vinted_id"
 NUM_CATALOGS = None
-CATALOG_IMPORTANCE_WEIGHTS = {1: 1.0, 2: 0.0, 3: 0.0}
+CATALOG_IMPORTANCE_WEIGHTS = {1: 1.0, 2: 0.5, 3: 0.0}
 
 
 def parse_args() -> Dict:
