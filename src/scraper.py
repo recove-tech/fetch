@@ -7,7 +7,7 @@ from .vinted import Vinted, VintedResponse
 from .preprocess import prepare_search_kwargs
 from .parse import parse_filters, parse_item
 from .utils import random_sleep, generate_timestamp, generate_unix_timestamp
-from .bigquery import insert_staging_rows, reset_staging_table, upload
+from .bigquery import upload
 from .enums import *
 
 
@@ -36,7 +36,6 @@ class VintedScraper:
         self.counter = 0
         self.visited = []
         self.num_uploaded = 0
-        self.num_inserted = 0
 
     def run(
         self,
@@ -115,30 +114,6 @@ class VintedScraper:
                 item_details_entries,
                 localization_entries,
             )
-
-    def insert_from_staging(self):
-        for table_id in [ITEM_TABLE_ID, IMAGE_TABLE_ID]:
-            inserted = insert_staging_rows(
-                client=self.bq_client,
-                dataset_id=DATASET_ID,
-                table_id=table_id,
-                reference_field=self._reference_field,
-            )
-
-            self.num_inserted += max(inserted, 0)
-
-    def reset_staging(self) -> bool:
-        success = False
-
-        for table_id in [ITEM_TABLE_ID, IMAGE_TABLE_ID]:
-            success = reset_staging_table(
-                client=self.bq_client,
-                dataset_id=DATASET_ID,
-                table_id=table_id,
-                field_id=self._reference_field,
-            )
-
-        return success
 
     def _update_progress(
         self,
