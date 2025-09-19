@@ -134,7 +134,7 @@ def main(
                 only_vintage=only_vintage,
             )
 
-            logging.info(f"{scraper.num_inserted=}")
+            logging.info(f"{scraper.num_uploaded=}")
 
 
 if __name__ == "__main__":
