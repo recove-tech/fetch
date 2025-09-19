@@ -56,6 +56,8 @@ def parse_item(
     material_id: Optional[int] = None,
     pattern_id: Optional[int] = None,
     color_id: Optional[int] = None,
+    created_at: Optional[str] = None,
+    unix_created_at: Optional[int] = None,
 ) -> Optional[Tuple[Item, Image, ItemDetails, ItemLocalization]]:
     try:
         result = _parse_item(
@@ -65,6 +67,8 @@ def parse_item(
             material_id=material_id,
             pattern_id=pattern_id,
             color_id=color_id,
+            created_at=created_at,
+            unix_created_at=unix_created_at,
         )
 
         if not result:
@@ -88,6 +92,8 @@ def _parse_item(
     material_id: Optional[int] = None,
     pattern_id: Optional[int] = None,
     color_id: Optional[int] = None,
+    created_at: Optional[str] = None,
+    unix_created_at: Optional[int] = None,
 ) -> Optional[Tuple[Item, Image, ItemDetails, ItemLocalization]]:
     vinted_id = str(data.get("id"))
     if not vinted_id:
@@ -116,6 +122,8 @@ def _parse_item(
         size=_parse_size(data),
         condition=data.get("status"),
         is_available=True,
+        created_at=created_at,
+        unix_created_at=unix_created_at,
     )
 
     image = Image(
