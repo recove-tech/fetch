@@ -32,7 +32,7 @@ class Item(BaseModel):
         if self.created_at is None:
             self.created_at = generate_timestamp()
         if self.updated_at is None:
-            self.updated_at = generate_timestamp()
+            self.updated_at = self.created_at
         if self.unix_created_at is None:
             self.unix_created_at = generate_unix_timestamp()
 
