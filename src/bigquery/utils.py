@@ -1,4 +1,4 @@
-from typing import List, Dict, Iterable, Optional
+from typing import List, Dict, Iterable, Optional, Tuple
 
 from google.oauth2 import service_account
 from google.cloud import bigquery
@@ -17,6 +17,23 @@ def init_client(credentials_dict: Dict) -> bigquery.Client:
     return bigquery.Client(
         credentials=credentials, project=credentials_dict["project_id"]
     )
+
+
+def create_table(
+    client: bigquery.Client,
+    dataset_id: str,
+    table_id: str,
+    schema: List[bigquery.SchemaField],
+) -> Tuple[bool, Optional[str]]:
+    table_ref = client.dataset(dataset_id).table(table_id)
+    table = bigquery.Table(table_ref, schema=schema)
+
+    try:
+        client.create_table(table)
+        return True, None
+
+    except Exception as e:
+        return False, str(e)
 
 
 def load_table(
@@ -64,80 +81,15 @@ def load_table(
 
 def upload(
     client: bigquery.Client, dataset_id: str, table_id: str, rows: List[Dict]
-) -> bool:
+) -> Tuple[bool, Optional[List[str]]]:
     try:
         errors = client.insert_rows_json(
             table=f"{PROJECT_ID}.{dataset_id}.{table_id}", json_rows=rows
         )
 
-        return len(errors) == 0
+        success = len(errors) == 0
+
+        return success, errors
 
     except Exception as e:
-        print(e)
-        return False
-
-
-def insert_staging_rows(
-    client: bigquery.Client, dataset_id: str, table_id: str, reference_field: str
-) -> int:
-    deduped_query = f"""
-SELECT s.*,
-ROW_NUMBER() OVER (PARTITION BY {reference_field} ORDER BY created_at DESC) AS rn
-FROM `{PROJECT_ID}.{dataset_id}.{table_id}_staging` s
-    """
-
-    to_remove_clause = (
-        f"SELECT {reference_field} FROM `{PROJECT_ID}.{dataset_id}.{table_id}`"
-    )
-
-    query = f"""
-INSERT INTO `{PROJECT_ID}.{dataset_id}.{table_id}`
-SELECT * EXCEPT(rn)
-FROM ({deduped_query}) deduped
-WHERE rn = 1 AND {reference_field} NOT IN ({to_remove_clause});
-    """
-
-    try:
-        query_job = client.query(query)
-        query_job.result()
-        return query_job.num_dml_affected_rows or 0
-
-    except Exception as e:
-        print(e)
-        return -1
-
-
-def reset_staging_table(
-    client: bigquery.Client, dataset_id: str, table_id: str, field_id: str
-) -> bool:
-    query = f"""
-CREATE OR REPLACE TABLE `{PROJECT_ID}.{dataset_id}.{table_id}_staging` AS
-SELECT * FROM `{PROJECT_ID}.{dataset_id}.{table_id}` LIMIT 0;
-    """
-
-    try:
-        client.query(query).result()
-        return True
-    except Exception as e:
-        print(e)
-        return False
-
-
-def query_catalogs_importance(importance_score: int, n: Optional[int] = None) -> str:
-    catalog_importance_query = f"""
-SELECT catalog_id, score
-FROM `{PROJECT_ID}.{DATASET_ID}.{CATALOG_IMPORTANCE_TABLE_ID}`
-WHERE score = {importance_score}
-    """
-
-    query = f"""
-SELECT c.*
-FROM `{PROJECT_ID}.{DATASET_ID}.{CATALOG_TABLE_ID}` AS c
-INNER JOIN ({catalog_importance_query}) AS ci ON c.id = ci.catalog_id
-ORDER BY RAND()
-    """
-
-    if n:
-        query += f"LIMIT {n}"
-
-    return query
+        return False, [str(e)]

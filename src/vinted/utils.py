@@ -1,5 +1,4 @@
-import re
-import time
+import re,  time
 from functools import wraps
 from typing import Callable, TypeVar, Any
 from requests.exceptions import RequestException
@@ -83,6 +82,6 @@ def parse_url_to_params(url: str):
         ]
 
         return final_params
+
     except Exception as e:
-        print(e)
         raise InvalidUrlException

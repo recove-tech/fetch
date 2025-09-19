@@ -1,3 +1,2 @@
 from .client import Vinted
-from .models import VintedResponse, ProxyConfig
-from .enums import *
+from .enums import VALID_VINTED_DOMAINS

@@ -5,8 +5,8 @@ from requests.exceptions import RequestException, ConnectionError, Timeout
 
 from .endpoints import Endpoints
 from .utils import parse_url_to_params, retry_on_failure
-from .models import VintedResponse, ProxyConfig
-from .enums import Domain, SortOption, USER_AGENT
+from ..models import VintedResponse, ProxyConfig, Domain
+from .enums import SortOption, USER_AGENT
 
 
 class Vinted:

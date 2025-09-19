@@ -1,0 +1,15 @@
+PROJECT_ID = "recove-450509"
+DATASET_ID = "vinted"
+STAGING_DATASET_ID = "staging"
+
+CATALOG_TABLE_ID = "catalog"
+CATALOG_IMPORTANCE_TABLE_ID = "catalog_importance"
+ITEM_TABLE_ID = "item"
+IMAGE_TABLE_ID = "image"
+CATEGORY_TABLE_ID = "category"
+LIKES_TABLE_ID = "likes"
+ITEM_DETAILS_TABLE_ID = "item_details"
+LOCALIZATION_TABLE_ID = "localization"
+
+STAGING_ITEM_TABLE_ID = "item_staging"
+STAGING_IMAGE_TABLE_ID = "image_staging"

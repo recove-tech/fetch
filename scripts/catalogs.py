@@ -38,7 +38,7 @@ def main():
             new_catalogs.append(entry)
             bq_rows.append(entry.to_dict())
 
-    success = src.bigquery.upload(
+    success, errors = src.bigquery.upload(
         client=bq_client,
         dataset_id=src.enums.DATASET_ID,
         table_id=src.enums.CATALOG_TABLE_ID,
@@ -46,6 +46,7 @@ def main():
     )
 
     print(f"{success=}")
+    print(f"{errors=}")
 
 
 if __name__ == "__main__":

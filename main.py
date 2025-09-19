@@ -2,8 +2,9 @@ import sys
 
 sys.path.append("../")
 
-from typing import Tuple, Optional, Iterable, Dict, List
+from typing import Tuple, Optional, Dict, List
 import argparse, random, logging
+
 import src
 
 logging.basicConfig(
@@ -17,7 +18,7 @@ DOMAIN = "fr"
 FILTER_BY_CHOICES = ["material", "patterns", "color"]
 REFERENCE_FIELD = "vinted_id"
 NUM_CATALOGS = None
-CATALOG_IMPORTANCE_WEIGHTS = {1: 1.0, 2: 0.5, 3: 0.0}
+CATALOG_IMPORTANCE_WEIGHTS = {1: 1.0, 2: 0.0, 3: 0.0}
 
 
 def parse_args() -> Dict:
@@ -50,13 +51,13 @@ def parse_args() -> Dict:
     return vars(args)
 
 
-def initialize_clients(vinted_domain: src.vinted.Domain) -> Tuple:
+def initialize_clients(vinted_domain: src.models.Domain) -> Tuple:
     secrets = src.utils.load_json_file("secrets.json")
 
     gcp_credentials = secrets.get("GCP_CREDENTIALS")
     bq_client = src.bigquery.init_client(credentials_dict=gcp_credentials)
 
-    proxy_config = src.vinted.ProxyConfig(password=secrets.get("APIFY_PROXY_PASSWORD"))
+    proxy_config = src.models.ProxyConfig(password=secrets.get("APIFY_PROXY_PASSWORD"))
     vinted_client = src.vinted.Vinted(domain=vinted_domain, proxy_config=proxy_config)
     vinted_client.fetch_cookies()
 
@@ -74,38 +75,24 @@ def get_catalog_importance_list() -> List[int]:
     return catalog_importance_list
 
 
-def get_dataloader(women: bool, catalog_importance: Optional[int] = None) -> Iterable:
-    conditions = [
-        f"women = {women}",
-        "is_valid = TRUE",
-        "is_active = TRUE",
-    ]
+def get_dataloader(
+    women: bool, catalog_importance: Optional[int] = None
+) -> List[src.models.VintedCatalog]:
+    query = src.bigquery.query_catalogs(
+        is_women=women, importance_score=catalog_importance, n=NUM_CATALOGS
+    )
 
-    kwargs = {
-        "client": bq_client,
-        "conditions": conditions,
-        "order_by": "RAND()",
-    }
+    entries = src.bigquery.load_table(
+        client=bq_client,
+        query=query,
+        to_list=True,
+    )
 
-    if catalog_importance:
-        query = src.bigquery.query_catalogs_importance(catalog_importance, NUM_CATALOGS)
-        loader = src.bigquery.load_table(
-            query=query,
-            **kwargs,
-        )
-
-    else:
-        loader = src.bigquery.load_table(
-            table_id=src.enums.CATALOG_TABLE_ID,
-            dataset_id=src.enums.DATASET_ID,
-            **kwargs,
-        )
-
-    return loader
+    return [src.models.VintedCatalog(**entry) for entry in entries]
 
 
 def main(
-    vinted_domain: str = src.vinted.Domain,
+    vinted_domain: str = src.models.Domain,
     filter_by: str = None,
     only_vintage: bool = False,
 ):

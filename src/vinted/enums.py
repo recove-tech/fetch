@@ -1,34 +1,6 @@
 from typing import Literal
 
 
-ROOT_URL = lambda domain: f"https://www.vinted.{domain}"
-
-
-Domain = Literal[
-    "pl",
-    "fr",
-    "at",
-    "be",
-    "cz",
-    "de",
-    "dk",
-    "es",
-    "fi",
-    "gr",
-    "hr",
-    "hu",
-    "it",
-    "lt",
-    "lu",
-    "nl",
-    "pt",
-    "ro",
-    "se",
-    "sk",
-    "co.uk",
-    "com",
-]
-
 VALID_VINTED_DOMAINS = [
     "pl",
     "fr",

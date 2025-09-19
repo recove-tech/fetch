@@ -1,10 +1,10 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
-from .vinted.models import VintedResponse, VintedCatalog
+from .models import VintedResponse, VintedCatalog
 from .enums import VALID_CATALOG_CODES
 
 
-def get_all_catalogs(response: VintedResponse) -> List[Dict[str, Any]]:
+def get_all_catalogs(response: VintedResponse) -> List[VintedCatalog]:
     iterator = (response.data or {}).get("dtos", {}).get("catalogs", [])
     all_catalogs = []
 
@@ -26,7 +26,8 @@ def get_all_catalogs(response: VintedResponse) -> List[Dict[str, Any]]:
             unnested_catalogs = unnest(input_catalog)
 
             for unnested_catalog in unnested_catalogs:
-                all_catalogs.append(parse(unnested_catalog, is_women))
+                catalog = parse(unnested_catalog, is_women)
+                all_catalogs.append(catalog)
 
     return all_catalogs
 
@@ -48,23 +49,11 @@ def check_is_women(catalog: Dict[str, Any]) -> bool:
     return "WOMEN" in catalog.get("code", "")
 
 
-def parse(entry: Dict[str, Any], is_women: bool) -> Optional[VintedCatalog]:
+def parse(entry: Dict[str, Any], is_women: bool) -> VintedCatalog:
     id_value = entry.get("id")
     title_value = entry.get("title")
     code_value = entry.get("code")
     url_value = entry.get("url")
-
-    if not isinstance(id_value, int):
-        return None
-
-    if not isinstance(title_value, str):
-        return None
-
-    if not isinstance(code_value, str):
-        return None
-
-    if not isinstance(url_value, str):
-        return None
 
     return VintedCatalog(
         id=id_value,
