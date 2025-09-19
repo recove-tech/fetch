@@ -6,12 +6,15 @@ from google.cloud import bigquery
 from .vinted import Vinted, VintedResponse
 from .preprocess import prepare_search_kwargs
 from .parse import parse_filters, parse_item
-from .utils import random_sleep
+from .utils import random_sleep, generate_timestamp, generate_unix_timestamp
 from .bigquery import insert_staging_rows, reset_staging_table, upload
 from .enums import *
 
 
 class VintedScraper:
+    CREATED_AT = generate_timestamp()
+    UNIX_CREATED_AT = generate_unix_timestamp()
+
     def __init__(
         self,
         bq_client: bigquery.Client,
@@ -146,16 +149,20 @@ class VintedScraper:
     ):
         success_rate = self.n_success / self.n if self.n > 0 else 0
 
-        loop.set_description(
-            f"Women: {women} | "
-            f"Catalog: {catalog_title} | "
-            f"Color: {color_id} | "
+        msg = f"Women: {women} | " f"Catalog: {catalog_title} | "
+
+        if color_id:
+            msg += f"Color: {color_id} | "
+
+        msg += (
             f"Items: {self.current_catalog} | "
             f"Processed: {self.n} | "
             f"Success: {self.n_success} | "
             f"Success rate: {success_rate:.2f} | "
             f"Uploaded: {self.num_uploaded} | "
         )
+
+        loop.set_description(msg)
 
     def _upload(
         self,
@@ -260,6 +267,8 @@ class VintedScraper:
                     material_id=material_id,
                     pattern_id=pattern_id,
                     color_id=color_id,
+                    created_at=self.CREATED_AT,
+                    unix_created_at=self.UNIX_CREATED_AT,
                 )
 
                 if not result:
